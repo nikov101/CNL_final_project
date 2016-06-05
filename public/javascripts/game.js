@@ -3,7 +3,7 @@ var stage = null;
 var circle = null;
 var circles = {};
 var keys = new Array(128);
-var socket = io('http://localhost:3000');
+var socket = io();
 var oldX, oldY;
 
 function init() {
@@ -17,34 +17,37 @@ function init() {
 	
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
-	this.document.onkeydown = function (event) {
+	document.addEventListener('keydown', function (event) {
 		keys[event.keyCode] = true;
-	};
-	this.document.onkeyup = function (event) {
+	});
+	document.addEventListener('keyup', function (event) {
 		keys[event.keyCode] = false;
-	};
-	this.document.onkeypress = function (event) {
+	});
+	document.addEventListener('keypress', function (event) {
 		if (event.keyCode == 13)
 			socket.emit('hello', {x: circle.x, y: circle.y});
-	};
+	});
 	
 	createjs.Ticker.addEventListener('tick', tick);
-	createjs.Ticker.setFPS(60);
+	createjs.Ticker.timingMode = createjs.Ticker.RAF;
+	// createjs.Ticker.setFPS(60);
 	
-	setInterval(sendPositionInfo, 30);
+	// setInterval(sendPositionInfo, 10);
 	socket.on('position', recvPositionInfo);
 	socket.on('hello', recvHelloMsg);
 }
 
 function tick(event) {
+	var d = Math.round(event.delta * 0.3);
 	if (keys[37])
-		circle.x -= 5;
+		circle.x -= d;
 	else if (keys[38])
-		circle.y -= 5;
+		circle.y -= d;
 	else if (keys[39])
-		circle.x += 5;
+		circle.x += d;
 	else if (keys[40])
-		circle.y += 5;
+		circle.y += d;
+	sendPositionInfo();
 	stage.update();
 }
 
@@ -73,9 +76,9 @@ function recvPositionInfo(data) {
 		circles[data.id] = c;
 		stage.addChild(c);
 	} else {
-		// circle2.x = data.x;
-		// circle2.y = data.y;
-		createjs.Tween.get(circles[data.id]).to({x: data.x, y: data.y}, 30);
+		// createjs.Tween.get(circles[data.id]).to({x: data.x, y: data.y}, 10);
+		circles[data.id].x = data.x;
+		circles[data.id].y = data.y;
 	}
 }
 
@@ -86,7 +89,13 @@ function recvHelloMsg(msg) {
 	text.textAlign = 'center';
 	text.textBaseline = 'middle';
 	stage.addChild(text);
-	setTimeout(function () {
-		stage.removeChild(text);
-	}, 1000);
+	createjs.Tween.get(text)
+		.wait(1000)
+		.to({alpha: 0, scaleX: 3, scaleY: 3}, 300)
+		.call(function () {
+			stage.removeChild(text);
+		});
+	// setTimeout(function () {
+	// 	stage.removeChild(text);
+	// }, 1000);
 }

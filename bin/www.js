@@ -24,7 +24,8 @@ var server = http.createServer(app);
 /**
  * Create Socket.io game server.
  */
-require('../game_server')(server);
+var io = require('socket.io')(server);
+require('../game_server')(io);
 
 /**
  * Listen on provided port, on all network interfaces.
