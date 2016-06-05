@@ -14,7 +14,7 @@ function init() {
 	circle.x = 200;
 	circle.y = 200;
 	stage.addChild(circle);
-	
+
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
 	this.document.onkeydown = function (event) {
@@ -24,13 +24,13 @@ function init() {
 		keys[event.keyCode] = false;
 	};
 	this.document.onkeypress = function (event) {
-		if (event.keyCode == 13)
+		if (event.keyCode == 32)  // space
 			socket.emit('hello', {x: circle.x, y: circle.y});
 	};
-	
+
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.setFPS(60);
-	
+
 	setInterval(sendPositionInfo, 30);
 	socket.on('position', recvPositionInfo);
 	socket.on('hello', recvHelloMsg);
@@ -80,13 +80,72 @@ function recvPositionInfo(data) {
 }
 
 function recvHelloMsg(msg) {
-	var text = new createjs.Text('Hello', '20px Arial', 'Black');
-	text.x = msg.x;
-	text.y = msg.y;
-	text.textAlign = 'center';
-	text.textBaseline = 'middle';
-	stage.addChild(text);
-	setTimeout(function () {
-		stage.removeChild(text);
+
+	var explosion = {
+	   images: ["images/spritesheet-explosion.jpg"],
+	   frames: {width:50, height:50},
+	   animations: {
+		   stand:0,
+		   run:[1,5, "", 0.1],
+		   jump:[6,8,"run"],
+	   }
+    };
+    var spriteSheet = new createjs.SpriteSheet(explosion);
+    var explosionAnim = new createjs.Sprite(spriteSheet, "run");
+    explosionAnim.x = msg.x -25;
+    explosionAnim.y = msg.y -25;
+	stage.addChild(explosionAnim);
+
+	var animationList = [];
+	animationList.push(explosionAnim);
+
+    setTimeout(function () {
+		for (var i = 0; i < 3; i++) {	//explosion length
+			for (var j = 0; j < 4; j++) {
+				if (j == 0) {	// up
+					var explosionAnim = new createjs.Sprite(spriteSheet, "run");
+					explosionAnim.x = msg.x - 25;
+					explosionAnim.y = msg.y - 25 + 60*(i+1);
+				} else if (j == 1) {	// down
+					var explosionAnim = new createjs.Sprite(spriteSheet, "run");
+					explosionAnim.x = msg.x - 25;
+					explosionAnim.y = msg.y - 25 - 60*(i+1);
+				} else if (j == 2) {	// left
+					var explosionAnim = new createjs.Sprite(spriteSheet, "run");
+					explosionAnim.x = msg.x - 25 - 60*(i+1);
+					explosionAnim.y = msg.y - 25;
+				} else {	// right
+					var explosionAnim = new createjs.Sprite(spriteSheet, "run");
+					explosionAnim.x = msg.x - 25 + 60*(i+1);
+					explosionAnim.y = msg.y - 25;
+				}
+				animationList.push(explosionAnim);
+				stage.addChild(explosionAnim);
+			}
+		}
 	}, 1000);
+
+	setTimeout(function () {
+		for (var i = 0; i < animationList.length; i++) {
+			stage.removeChild(animationList[i]);
+		}
+	}, 2000);
+
+	// var text = new createjs.Text('Hello', '20px Arial', 'Black');
+	// text.x = msg.x;
+	// text.y = msg.y;
+	// text.textAlign = 'center';
+	// text.textBaseline = 'middle';
+	//stage.addChild(text);
+
+
+	// createjs.Tween.get(text)
+	// 	.wait(1000)
+	// 	.to({alpha: 0, scaleX: 3, scaleY: 3}, 300)
+	// 	.call(function () {
+	// 		stage.removeChild(text);
+	// 	});
+	// setTimeout(function () {
+	// 	stage.removeChild(text);
+	// }, 1000);
 }
