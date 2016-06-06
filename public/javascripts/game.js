@@ -7,24 +7,13 @@ var socket = io();
 var oldX, oldY;
 
 function init() {
-	stage = new createjs.Stage('canvas');
 	canvas = document.getElementById('canvas');
-	//stage.autoClear = false;
-	
-	//canvas.style.background = '#000';
-
-	canvas.style.background = '#708090';
-	drawGridLines();
-
+	stage = new createjs.Stage('canvas');
 	circle = new createjs.Shape();
 	circle.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 30);
 	circle.x = 200;
 	circle.y = 200;
 	stage.addChild(circle);
-	
-   	/*var polystar = new createjs.Shape();
-    polystar.graphics.setStrokeStyle(1).beginStroke("#0000ff").drawPolyStar(360,60,10,5,6,20);
-    stage.addChild(polystar);*/
 	
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
@@ -48,30 +37,16 @@ function init() {
 	socket.on('hello', recvHelloMsg);
 }
 
-function drawGridLines(){
-	var line = new createjs.Shape();
-	// draw horizontal lines
-	for (var i = 1; i*50 <= window.innerHeight; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(0,50*i).lineTo(window.innerWidth,50*i).es();
-	};
-	// draw vertical lines
-	for (var i = 1; i*50 <= window.innerWidth; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(50*i,0).lineTo(50*i,window.innerHeight).es();
-	};
-   	stage.addChild(line);
-}
-
 function tick(event) {
 	var d = Math.round(event.delta * 0.3);
-	if (keys[37] && circle.x > d)
+	if (keys[37])
 		circle.x -= d;
-	else if (keys[38] && circle.y > d)
+	else if (keys[38])
 		circle.y -= d;
-	else if (keys[39] && circle.x+d < window.innerWidth)
+	else if (keys[39])
 		circle.x += d;
-	else if (keys[40] && circle.y+d < window.innerHeight)
+	else if (keys[40])
 		circle.y += d;
-	
 	sendPositionInfo();
 	stage.update();
 }
@@ -108,7 +83,7 @@ function recvPositionInfo(data) {
 }
 
 function recvHelloMsg(msg) {
-	var text = new createjs.Text('Hello', '20px Arial', 'White');
+	var text = new createjs.Text('Hello', '20px Arial', 'Black');
 	text.x = msg.x;
 	text.y = msg.y;
 	text.textAlign = 'center';
