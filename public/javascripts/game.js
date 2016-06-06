@@ -1,13 +1,13 @@
 var canvas = null;
 var stage = null;
-var circle = null;
+var me = null;
 var line = null;
 var circles = {};
-var container = {};
+var container = null;
 var keys = new Array(128);
 var socket = io();
-var actualX, actualY;
 var oldX, oldY;
+var mapWidth = 2000, mapHeight = 2000;
 
 function init() {
 	stage = new createjs.Stage('canvas');
@@ -18,24 +18,22 @@ function init() {
 
 	container = new createjs.Container();
 	canvas.style.background = '#708090';
-	actualX = 1000;
-	actualY = 1000;
 	drawGridLines();
 
-	circle = new createjs.Shape();
-	circle.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 30);
-	circle.x = window.innerWidth/2;
-	circle.y = window.innerHeight/2;
-	container.addChild(circle);
+	me = new createjs.Shape();
+	me.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
+	me.x = mapWidth / 2;
+	me.y = mapHeight / 2;
+	container.addChild(me);
 	stage.addChild(container);
-	
-   	/*var polystar = new createjs.Shape();
-    polystar.graphics.setStrokeStyle(1).beginStroke("#0000ff").drawPolyStar(360,60,10,5,6,20);
-    stage.addChild(polystar);*/
 	
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
 	document.addEventListener('keydown', function (event) {
+		if (event.keyCode >= 37 && event.keyCode <= 40) {
+			for (var i = 37; i <= 40; i++)
+				keys[i] = false;
+		}
 		keys[event.keyCode] = true;
 	});
 	document.addEventListener('keyup', function (event) {
@@ -43,44 +41,42 @@ function init() {
 	});
 	document.addEventListener('keypress', function (event) {
 		if (event.keyCode == 13)
-			socket.emit('hello', {x: circle.x, y: circle.y});
+			socket.emit('hello', {x: me.x, y: me.y});
 	});
 	
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
-	// createjs.Ticker.setFPS(60);
 	
-	// setInterval(sendPositionInfo, 10);
 	socket.on('position', recvPositionInfo);
 	socket.on('hello', recvHelloMsg);
 }
 
 function drawGridLines(){
-	stage.removeChild(line);
 	line = new createjs.Shape();
-	// draw horizontal lines
-	for (var i = 1; i*50 <= window.innerHeight; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(0,50+(-actualY%50)+50*i).lineTo(window.innerWidth,50+(-actualY%50)+50*i).es();
-	};
-	// draw vertical lines
-	for (var i = 1; i*50 <= window.innerWidth; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(50+(-actualX%50)+50*i,0).lineTo(50+(-actualX%50)+50*i,window.innerHeight).es();
-	};
-   	stage.addChild(line);
+	line.graphics.ss(1).s('black');
+	for (var i = 0; i <= mapWidth; i += 50) {
+		line.graphics.mt(i, 0).lt(i, mapHeight);
+	}
+	for (var i = 0; i <= mapHeight; i += 50) {
+		line.graphics.mt(0, i).lt(mapWidth, i);
+	}
+   	container.addChild(line);
 }
 
 function tick(event) {
 	var d = Math.round(event.delta * 0.3);
-	if (keys[37] && actualX > d)
-		actualX -= d;
-	else if (keys[38] && actualY > d)
-		actualY -= d;
-	else if (keys[39] && actualX+d < 2000)
-		actualX += d;
-	else if (keys[40] && actualY+d < 2000)
-		actualY += d;
+	if (keys[37])
+		me.x = Math.max(me.x - d, 0);
+	else if (keys[38])
+		me.y = Math.max(me.y - d, 0);
+	else if (keys[39])
+		me.x = Math.min(me.x + d, mapWidth);
+	else if (keys[40])
+		me.y = Math.min(me.y + d, mapHeight);
+
+	container.x = canvas.width / 2 - me.x;
+	container.y = canvas.height / 2 - me.y;
 	
-	drawGridLines();
 	sendPositionInfo();
 	stage.update();
 }
@@ -91,12 +87,12 @@ function resizeCanvas() {
 }
 
 function sendPositionInfo() {
-	if (actualX != oldX || actualY != oldY) {
-		oldX = actualX;
-		oldY = actualY;
+	if (me.x != oldX || me.y != oldY) {
+		oldX = me.x;
+		oldY = me.y;
 		socket.emit('position', {
-			x: actualX,
-			y: actualY
+			x: me.x,
+			y: me.y
 		});
 	}
 }
@@ -108,7 +104,7 @@ function recvPositionInfo(data) {
 		c.x = data.x;
 		c.y = data.y;
 		circles[data.id] = c;
-		stage.addChild(c);
+		container.addChild(c);
 	} else {
 		// createjs.Tween.get(circles[data.id]).to({x: data.x, y: data.y}, 10);
 		circles[data.id].x = data.x;
@@ -122,14 +118,11 @@ function recvHelloMsg(msg) {
 	text.y = msg.y;
 	text.textAlign = 'center';
 	text.textBaseline = 'middle';
-	stage.addChild(text);
+	container.addChild(text);
 	createjs.Tween.get(text)
 		.wait(1000)
 		.to({alpha: 0, scaleX: 3, scaleY: 3}, 300)
 		.call(function () {
-			stage.removeChild(text);
+			container.removeChild(text);
 		});
-	// setTimeout(function () {
-	// 	stage.removeChild(text);
-	// }, 1000);
 }
