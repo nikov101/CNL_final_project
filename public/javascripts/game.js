@@ -1,9 +1,12 @@
 var canvas = null;
 var stage = null;
 var circle = null;
+var line = null;
 var circles = {};
+var container = {};
 var keys = new Array(128);
 var socket = io();
+var actualX, actualY;
 var oldX, oldY;
 
 function init() {
@@ -13,14 +16,18 @@ function init() {
 	
 	//canvas.style.background = '#000';
 
+	container = new createjs.Container();
 	canvas.style.background = '#708090';
+	actualX = 1000;
+	actualY = 1000;
 	drawGridLines();
 
 	circle = new createjs.Shape();
 	circle.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 30);
-	circle.x = 200;
-	circle.y = 200;
-	stage.addChild(circle);
+	circle.x = window.innerWidth/2;
+	circle.y = window.innerHeight/2;
+	container.addChild(circle);
+	stage.addChild(container);
 	
    	/*var polystar = new createjs.Shape();
     polystar.graphics.setStrokeStyle(1).beginStroke("#0000ff").drawPolyStar(360,60,10,5,6,20);
@@ -49,29 +56,31 @@ function init() {
 }
 
 function drawGridLines(){
-	var line = new createjs.Shape();
+	stage.removeChild(line);
+	line = new createjs.Shape();
 	// draw horizontal lines
 	for (var i = 1; i*50 <= window.innerHeight; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(0,50*i).lineTo(window.innerWidth,50*i).es();
+		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(0,50+(-actualY%50)+50*i).lineTo(window.innerWidth,50+(-actualY%50)+50*i).es();
 	};
 	// draw vertical lines
 	for (var i = 1; i*50 <= window.innerWidth; i++) {
-		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(50*i,0).lineTo(50*i,window.innerHeight).es();
+		line.graphics.setStrokeStyle(1).beginStroke('black').moveTo(50+(-actualX%50)+50*i,0).lineTo(50+(-actualX%50)+50*i,window.innerHeight).es();
 	};
    	stage.addChild(line);
 }
 
 function tick(event) {
 	var d = Math.round(event.delta * 0.3);
-	if (keys[37] && circle.x > d)
-		circle.x -= d;
-	else if (keys[38] && circle.y > d)
-		circle.y -= d;
-	else if (keys[39] && circle.x+d < window.innerWidth)
-		circle.x += d;
-	else if (keys[40] && circle.y+d < window.innerHeight)
-		circle.y += d;
+	if (keys[37] && actualX > d)
+		actualX -= d;
+	else if (keys[38] && actualY > d)
+		actualY -= d;
+	else if (keys[39] && actualX+d < 2000)
+		actualX += d;
+	else if (keys[40] && actualY+d < 2000)
+		actualY += d;
 	
+	drawGridLines();
 	sendPositionInfo();
 	stage.update();
 }
@@ -82,12 +91,12 @@ function resizeCanvas() {
 }
 
 function sendPositionInfo() {
-	if (circle.x != oldX || circle.y != oldY) {
-		oldX = circle.x;
-		oldY = circle.y;
+	if (actualX != oldX || actualY != oldY) {
+		oldX = actualX;
+		oldY = actualY;
 		socket.emit('position', {
-			x: circle.x,
-			y: circle.y
+			x: actualX,
+			y: actualY
 		});
 	}
 }
