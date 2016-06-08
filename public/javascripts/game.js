@@ -52,6 +52,7 @@ function init() {
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
 	
+	socket.on('quit', recvQuit);
 	socket.on('position', recvPositionInfo);
 	socket.on('hello', recvHelloMsg);
 	socket.on('setBomb', recvSetBomb);
@@ -99,6 +100,11 @@ function handleKeyPress() {
 		socket.emit('hello', {x: me.x, y: me.y});
 	if (event.keyCode == 32)  // Space
 		socket.emit('setBomb', {x: me.x, y: me.y, power: 3});
+}
+
+function recvQuit(data) {
+	othersContainer.removeChild(others[data.id]);
+	delete others[data.id];
 }
 
 function sendPositionInfo() {

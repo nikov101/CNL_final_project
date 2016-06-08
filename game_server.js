@@ -2,6 +2,9 @@ module.exports = function (io) {
 	
 	var bombId = 0;
 	io.on('connection', function (socket) {
+		socket.on('disconnect', function () {
+			io.emit('quit', {id: socket.id});
+		});
 		socket.on('position', function (data) {
 			data.id = socket.id;
 			socket.broadcast.emit('position', data);
