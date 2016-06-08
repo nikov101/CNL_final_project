@@ -95,10 +95,11 @@ function resizeCanvas() {
 	canvas.height = window.innerHeight;
 }
 
-function handleKeyPress() {
-	if (event.keyCode == 13)  // Enter
+function handleKeyPress(event) {
+	var keyCode = (event.keyCode ? event.keyCode : event.which);  // Firefox sucks!
+	if (keyCode == 13)  // Enter
 		socket.emit('hello', {x: me.x, y: me.y});
-	if (event.keyCode == 32)  // Space
+	if (keyCode == 32)  // Space
 		socket.emit('setBomb', {x: me.x, y: me.y, power: 3});
 }
 
