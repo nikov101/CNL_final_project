@@ -1,9 +1,13 @@
 var canvas = null;
 var stage = null;
 var me = null;
-var line = null;
-var circles = {};
-var container = null;
+var others = {};
+var bombs = {};
+var othersContainer = null;
+var bombsContainer = null;
+var dynamicContainer = null;
+var staticContainer = null;
+
 var keys = new Array(128);
 var socket = io();
 var oldX, oldY;
@@ -12,20 +16,24 @@ var mapWidth = 2000, mapHeight = 2000;
 function init() {
 	stage = new createjs.Stage('canvas');
 	canvas = document.getElementById('canvas');
-	//stage.autoClear = false;
-	
-	//canvas.style.background = '#000';
 
-	container = new createjs.Container();
-	canvas.style.background = '#708090';
+	dynamicContainer = new createjs.Container();
+	stage.addChild(dynamicContainer);
+	canvas.style.background = 'rgb(55,66,82)';
 	drawGridLines();
+	bombsContainer = new createjs.Container();
+	dynamicContainer.addChild(bombsContainer);
+	othersContainer = new createjs.Container();
+	dynamicContainer.addChild(othersContainer);
 
 	me = new createjs.Shape();
 	me.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
 	me.x = mapWidth / 2;
 	me.y = mapHeight / 2;
-	container.addChild(me);
-	stage.addChild(container);
+	dynamicContainer.addChild(me);
+	
+	staticContainer = new createjs.Container();
+	stage.addChild(staticContainer);
 	
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
@@ -39,28 +47,28 @@ function init() {
 	document.addEventListener('keyup', function (event) {
 		keys[event.keyCode] = false;
 	});
-	document.addEventListener('keypress', function (event) {
-		if (event.keyCode == 13)
-			socket.emit('hello', {x: me.x, y: me.y});
-	});
+	document.addEventListener('keypress', handleKeyPress);
 	
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
 	
 	socket.on('position', recvPositionInfo);
 	socket.on('hello', recvHelloMsg);
+	socket.on('setBomb', recvSetBomb);
+	socket.on('explosion', recvExplosion);
 }
 
 function drawGridLines(){
-	line = new createjs.Shape();
-	line.graphics.ss(1).s('black');
+	var gridLine = new createjs.Shape();
+	gridLine.graphics.ss(1).s('black');
 	for (var i = 0; i <= mapWidth; i += 50) {
-		line.graphics.mt(i, 0).lt(i, mapHeight);
+		gridLine.graphics.mt(i, 0).lt(i, mapHeight);
 	}
 	for (var i = 0; i <= mapHeight; i += 50) {
-		line.graphics.mt(0, i).lt(mapWidth, i);
+		gridLine.graphics.mt(0, i).lt(mapWidth, i);
 	}
-   	container.addChild(line);
+	gridLine.alpha = 0.5;
+   	dynamicContainer.addChild(gridLine);
 }
 
 function tick(event) {
@@ -74,8 +82,8 @@ function tick(event) {
 	else if (keys[40])
 		me.y = Math.min(me.y + d, mapHeight);
 
-	container.x = canvas.width / 2 - me.x;
-	container.y = canvas.height / 2 - me.y;
+	dynamicContainer.x = canvas.width / 2 - me.x;
+	dynamicContainer.y = canvas.height / 2 - me.y;
 	
 	sendPositionInfo();
 	stage.update();
@@ -84,6 +92,13 @@ function tick(event) {
 function resizeCanvas() {
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
+}
+
+function handleKeyPress() {
+	if (event.keyCode == 13)  // Enter
+		socket.emit('hello', {x: me.x, y: me.y});
+	if (event.keyCode == 32)  // Space
+		socket.emit('setBomb', {x: me.x, y: me.y, power: 3});
 }
 
 function sendPositionInfo() {
@@ -98,17 +113,17 @@ function sendPositionInfo() {
 }
 
 function recvPositionInfo(data) {
-	if (!(data.id in circles)) {
+	if (!(data.id in others)) {
 		var c = new createjs.Shape();
-		c.graphics.ss(3).s('black').f('Pink').drawCircle(0, 0, 30);
+		c.graphics.ss(3).s('black').f('Pink').drawCircle(0, 0, 25);
 		c.x = data.x;
 		c.y = data.y;
-		circles[data.id] = c;
-		container.addChild(c);
+		others[data.id] = c;
+		othersContainer.addChild(c);
 	} else {
-		// createjs.Tween.get(circles[data.id]).to({x: data.x, y: data.y}, 10);
-		circles[data.id].x = data.x;
-		circles[data.id].y = data.y;
+		// createjs.Tween.get(others[data.id]).to({x: data.x, y: data.y}, 10);
+		others[data.id].x = data.x;
+		others[data.id].y = data.y;
 	}
 }
 
@@ -118,11 +133,43 @@ function recvHelloMsg(msg) {
 	text.y = msg.y;
 	text.textAlign = 'center';
 	text.textBaseline = 'middle';
-	container.addChild(text);
+	dynamicContainer.addChild(text);
 	createjs.Tween.get(text)
 		.wait(1000)
 		.to({alpha: 0, scaleX: 3, scaleY: 3}, 300)
 		.call(function () {
-			container.removeChild(text);
+			dynamicContainer.removeChild(text);
 		});
+}
+
+function recvSetBomb(data) {
+	var bomb = new createjs.Shape();
+	bomb.graphics.ss(3).s('black').f('white').drawRoundRect(0, 0, 50, 50, 20);
+	bomb.x = data.x;
+	bomb.y = data.y;
+	bombs[data.id] = bomb;
+	bombsContainer.addChild(bomb);
+}
+
+function recvExplosion(data) {
+	console.log(data);
+	var bomb = bombs[data.id];
+	var X = [-50, 0, 50, 0], Y = [0, -50, 0, 50];
+	for (var i = 0; i <= data.power; i++) {
+		for (var j = 0; j < 4; j++) {
+			var fire = new createjs.Shape();
+			fire.graphics.f('yellow').drawRoundRect(0, 0, 50, 50, 10);
+			fire.x = bomb.x + X[j] * i;
+			fire.y = bomb.y + Y[j] * i;
+			bombsContainer.addChild(fire);
+			createjs.Tween.get(fire)
+				.wait(500)
+				.to({alpha: 0}, 100)
+				.call(function () {
+					bombsContainer.removeChild(fire);
+				});
+		}
+	}
+	bombsContainer.removeChild(bomb);
+	delete bombs[data.id];
 }
