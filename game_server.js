@@ -2,14 +2,16 @@ module.exports = function (io) {
 	
 	var bombId = 0;
 	var bombs = {};
+	var players = {};
 
 	io.on('connection', function (socket) {
 		socket.on('disconnect', function () {
-			io.emit('quit', {id: socket.id});
+			io.emit('quit', socket.id);
 		});
 		socket.on('position', function (data) {
 			data.id = socket.id;
 			socket.broadcast.emit('position', data);
+			players[data.id] = data;
 		});
 		socket.on('hello', function (data) {
 			io.emit('hello', data);
@@ -43,13 +45,21 @@ module.exports = function (io) {
 		];
 		io.emit('explosion', {id: id, power: b.power});
 		delete bombs[id];
+
+		for (id in players) {
+			var p = players[id];
+			if ((p.x >= ranges[0].x1 && p.y >= ranges[0].y1 && p.x < ranges[0].x2 && p.y < ranges[0].y2)
+					|| (p.x >= ranges[1].x1 && p.y >= ranges[1].y1 && p.x < ranges[1].x2 && p.y < ranges[1].y2)) {
+				io.emit('kill', id);
+				delete players[id];
+			}
+		}
+
 		for (id in bombs) {
 			b = bombs[id];
-			for (var i = 0; i < 2; i++) {
-				if (b.x >= ranges[i].x1 && b.y >= ranges[i].y1 && b.x < ranges[i].x2 && b.y < ranges[i].y2) {
-					handleExplosion(id);
-					break;
-				}
+			if ((b.x >= ranges[0].x1 && b.y >= ranges[0].y1 && b.x < ranges[0].x2 && b.y < ranges[0].y2)
+					|| (b.x >= ranges[1].x1 && b.y >= ranges[1].y1 && b.x < ranges[1].x2 && b.y < ranges[1].y2)) {
+				handleExplosion(id);
 			}
 		}
 	}

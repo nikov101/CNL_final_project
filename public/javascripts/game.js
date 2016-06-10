@@ -57,6 +57,7 @@ function init() {
 	socket.on('hello', recvHelloMsg);
 	socket.on('setBomb', recvSetBomb);
 	socket.on('explosion', recvExplosion);
+	socket.on('kill', recvKill);
 }
 
 function drawGridLines(){
@@ -103,9 +104,9 @@ function handleKeyPress(event) {
 		socket.emit('setBomb', {x: me.x, y: me.y, power: 3});
 }
 
-function recvQuit(data) {
-	othersContainer.removeChild(others[data.id]);
-	delete others[data.id];
+function recvQuit(id) {
+	othersContainer.removeChild(others[id]);
+	delete others[id];
 }
 
 function sendPositionInfo() {
@@ -179,4 +180,18 @@ function recvExplosion(data) {
 	}
 	bombsContainer.removeChild(bomb);
 	delete bombs[data.id];
+}
+
+function recvKill(id) {
+	if (id.indexOf(socket.id) == -1) {		// id would contain some \#$%^
+		// not me
+		// createjs.Tween.get(others[id])
+		// 	.to({alpha: 0, scaleX: 1.5, scaleY: 1.5}, 400)
+		// 	.call(function () {
+		// 		othersContainer.removeChild(others[id]);
+		// 	});
+		// delete others[id];
+	} else {
+		// is me
+	}
 }
