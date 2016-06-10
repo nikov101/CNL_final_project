@@ -25,29 +25,19 @@ function init() {
 	dynamicContainer.addChild(bombsContainer);
 	othersContainer = new createjs.Container();
 	dynamicContainer.addChild(othersContainer);
+	staticContainer = new createjs.Container();
+	stage.addChild(staticContainer);
 
 	me = new createjs.Shape();
 	me.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
 	me.x = mapWidth / 2;
 	me.y = mapHeight / 2;
-	dynamicContainer.addChild(me);
-	
-	staticContainer = new createjs.Container();
-	stage.addChild(staticContainer);
 	
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
-	document.addEventListener('keydown', function (event) {
-		if (event.keyCode >= 37 && event.keyCode <= 40) {
-			for (var i = 37; i <= 40; i++)
-				keys[i] = false;
-		}
-		keys[event.keyCode] = true;
-	});
 	document.addEventListener('keyup', function (event) {
 		keys[event.keyCode] = false;
 	});
-	document.addEventListener('keypress', handleKeyPress);
 	
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
@@ -58,6 +48,32 @@ function init() {
 	socket.on('setBomb', recvSetBomb);
 	socket.on('explosion', recvExplosion);
 	socket.on('kill', recvKill);
+
+	document.getElementById('playerNameInput').addEventListener('keypress', function (event) {
+		var keyCode = (event.keyCode ? event.keyCode : event.which);
+		if (keyCode == 13)
+			join();
+	});
+}
+
+function join() {
+	me.x = mapWidth / 2;
+	me.y = mapHeight / 2;
+	dynamicContainer.addChild(me);
+	document.addEventListener('keydown', handleKeyDown);
+	document.addEventListener('keypress', handleKeyPress);
+	document.getElementById('startMenu').style.zIndex = -1;
+	document.getElementById('playerNameInput').disabled = true;
+}
+
+function die() {
+	document.removeEventListener('keydown', handleKeyDown);
+	document.removeEventListener('keypress', handleKeyPress);
+	for (var i = 0; i < keys.length; i++)
+		keys[i] = false;
+	dynamicContainer.removeChild(me);
+	document.getElementById('startMenu').style.zIndex = 1;
+	document.getElementById('playerNameInput').disabled = false;
 }
 
 function drawGridLines(){
@@ -83,10 +99,8 @@ function tick(event) {
 		me.x = Math.min(me.x + d, mapWidth);
 	else if (keys[40])
 		me.y = Math.min(me.y + d, mapHeight);
-
-	dynamicContainer.x = canvas.width / 2 - me.x;
+	dynamicContainer.x = canvas.width / 2 - me.x;  // moving camera
 	dynamicContainer.y = canvas.height / 2 - me.y;
-	
 	sendPositionInfo();
 	stage.update();
 }
@@ -94,6 +108,14 @@ function tick(event) {
 function resizeCanvas() {
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
+}
+
+function handleKeyDown(event) {
+	if (event.keyCode >= 37 && event.keyCode <= 40) {
+		for (var i = 37; i <= 40; i++)
+			keys[i] = false;
+	}
+	keys[event.keyCode] = true;
 }
 
 function handleKeyPress(event) {
@@ -160,7 +182,6 @@ function recvSetBomb(data) {
 }
 
 function recvExplosion(data) {
-	console.log(data);
 	var bomb = bombs[data.id];
 	var X = [-50, 0, 50, 0], Y = [0, -50, 0, 50];
 	for (var i = 0; i <= data.power; i++) {
@@ -185,13 +206,14 @@ function recvExplosion(data) {
 function recvKill(id) {
 	if (id.indexOf(socket.id) == -1) {		// id would contain some \#$%^
 		// not me
-		// createjs.Tween.get(others[id])
-		// 	.to({alpha: 0, scaleX: 1.5, scaleY: 1.5}, 400)
-		// 	.call(function () {
-		// 		othersContainer.removeChild(others[id]);
-		// 	});
-		// delete others[id];
+		createjs.Tween.get(others[id])
+			.to({alpha: 0, scaleX: 1.5, scaleY: 1.5}, 400)
+			.call(function () {
+				othersContainer.removeChild(others[id]);
+			});
+		delete others[id];
 	} else {
 		// is me
+		die();
 	}
 }
