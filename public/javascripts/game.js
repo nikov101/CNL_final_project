@@ -3,8 +3,10 @@ var stage = null;
 var me = null;
 var others = {};
 var bombs = {};
+var foods = {};
 var othersContainer = null;
 var bombsContainer = null;
+var foodsContainer = null;
 var dynamicContainer = null;
 var staticContainer = null;
 
@@ -21,6 +23,8 @@ function init() {
 	stage.addChild(dynamicContainer);
 	canvas.style.background = 'rgb(55,66,82)';
 	drawGridLines();
+	foodsContainer = new createjs.Container();
+	dynamicContainer.addChild(foodsContainer);
 	bombsContainer = new createjs.Container();
 	dynamicContainer.addChild(bombsContainer);
 	othersContainer = new createjs.Container();
@@ -28,8 +32,9 @@ function init() {
 	staticContainer = new createjs.Container();
 	stage.addChild(staticContainer);
 
-	me = new createjs.Shape();
-	me.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
+	me = new createjs.Container();
+	meCircle = new createjs.Shape();
+	meCircle.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
 	me.x = mapWidth / 2;
 	me.y = mapHeight / 2;
 	
@@ -48,22 +53,47 @@ function init() {
 	socket.on('setBomb', recvSetBomb);
 	socket.on('explosion', recvExplosion);
 	socket.on('kill', recvKill);
+	socket.on('status', recvStatus);
+	socket.on('gameOver', recvGameOver);
+	socket.on('foodSpawn', recvFoodSpawn);
+	socket.on('foodEaten', recvFoodEaten);
 
 	document.getElementById('playerNameInput').addEventListener('keypress', function (event) {
 		var keyCode = (event.keyCode ? event.keyCode : event.which);
 		if (keyCode == 13)
 			join();
 	});
+	$('button.teal').on('click', function () {
+		sendUpgrade('maxBombs');
+	});
+	$('button.red').on('click', function () {
+		sendUpgrade('power');
+	});
+	$('button.yellow').on('click', function () {
+		sendUpgrade('speed');
+	});
 }
 
 function join() {
 	me.x = mapWidth / 2;
 	me.y = mapHeight / 2;
+	var myName = document.getElementById('playerNameInput').value;
+	var t = new createjs.Text(myName, '12pt Arial', 'White');
+	t.textAlign = 'center';
+	t.textBaseline = 'middle';
+	me.addChild(meCircle, t);
 	dynamicContainer.addChild(me);
+	socket.emit('join', {
+		name: myName,
+		x: me.x,
+		y: me.y
+	});
+	// setInterval(sendPositionInfo, 33);
 	document.addEventListener('keydown', handleKeyDown);
 	document.addEventListener('keypress', handleKeyPress);
 	document.getElementById('startMenu').style.zIndex = -1;
 	document.getElementById('playerNameInput').disabled = true;
+	$('#statusPanel').css('z-index', 1);
 }
 
 function die() {
@@ -74,6 +104,8 @@ function die() {
 	dynamicContainer.removeChild(me);
 	document.getElementById('startMenu').style.zIndex = 1;
 	document.getElementById('playerNameInput').disabled = false;
+	$('#statusPanel').css('z-index', -1);
+	$('#playerNameInput').focus();
 }
 
 function drawGridLines(){
@@ -120,10 +152,10 @@ function handleKeyDown(event) {
 
 function handleKeyPress(event) {
 	var keyCode = (event.keyCode ? event.keyCode : event.which);  // Firefox sucks!
-	if (keyCode == 13)  // Enter
-		socket.emit('hello', {x: me.x, y: me.y});
+	// if (keyCode == 13)  // Enter
+	// 	socket.emit('hello', {x: me.x, y: me.y});
 	if (keyCode == 32)  // Space
-		socket.emit('setBomb', {x: me.x, y: me.y, power: 3});
+		socket.emit('setBomb', {x: me.x, y: me.y});
 }
 
 function recvQuit(id) {
@@ -142,18 +174,27 @@ function sendPositionInfo() {
 	}
 }
 
+function sendUpgrade(type) {
+	socket.emit('upgrade', {type: type});
+}
+
 function recvPositionInfo(data) {
 	if (!(data.id in others)) {
+		var con = new createjs.Container();
 		var c = new createjs.Shape();
 		c.graphics.ss(3).s('black').f('Pink').drawCircle(0, 0, 25);
-		c.x = data.x;
-		c.y = data.y;
-		others[data.id] = c;
-		othersContainer.addChild(c);
+		var t = new createjs.Text(data.name, '12pt Arial', 'White');
+		t.textAlign = 'center';
+		t.textBaseline = 'middle';
+		con.x = data.x;
+		con.y = data.y;
+		con.addChild(c, t);
+		othersContainer.addChild(con);
+		others[data.id] = con;
 	} else {
-		// createjs.Tween.get(others[data.id]).to({x: data.x, y: data.y}, 10);
-		others[data.id].x = data.x;
-		others[data.id].y = data.y;
+		createjs.Tween.get(others[data.id]).to({x: data.x, y: data.y}, 15);
+		// others[data.id].x = data.x;
+		// others[data.id].y = data.y;
 	}
 }
 
@@ -204,16 +245,51 @@ function recvExplosion(data) {
 }
 
 function recvKill(id) {
-	if (id.indexOf(socket.id) == -1) {		// id would contain some \#$%^
-		// not me
-		createjs.Tween.get(others[id])
+	// if (id.indexOf(socket.id) == -1) {		// id would contain some \#$%^
+	// 	// not me
+		var s = others[id];
+		delete others[id];
+		createjs.Tween.get(s)
 			.to({alpha: 0, scaleX: 1.5, scaleY: 1.5}, 400)
 			.call(function () {
-				othersContainer.removeChild(others[id]);
+				othersContainer.removeChild(s);
 			});
-		delete others[id];
+	// } else {
+	// 	// is me
+	// 	die();
+	// }
+}
+
+function recvGameOver() {
+	die();
+}
+
+function recvStatus(data) {
+	$('div.teal.progress').progress({value:data.maxBombs, total:7, autoSuccess:false, showActivity:false});
+	$('div.red.progress').progress({value:data.power, total:7, autoSuccess:false, showActivity:false});
+	$('div.yellow.progress').progress({value:data.speed, total:7, autoSuccess:false, showActivity:false});
+	if (data.skillPoint > 0) {
+		$('button.ui').show();
 	} else {
-		// is me
-		die();
+		$('button.ui').hide();
 	}
+}
+
+function recvFoodSpawn(data) {
+	var f = new createjs.Shape();
+	f.x = data.x;
+	f.y = data.y;
+	var angle = Math.random() * 180 | 0;
+	if (angle % 3 == 0) {
+		f.graphics.ss(2).s('black').f('greenyellow').drawPolyStar(0, 0, 15, 3, 0, angle);
+	} else {
+		f.graphics.ss(2).s('black').f('greenyellow').drawPolyStar(0, 0, 15, (angle % 3) + 4, 0, angle);
+	}
+	foods[data.id] = f;
+	foodsContainer.addChild(f);
+}
+
+function recvFoodEaten(fid) {
+	foodsContainer.removeChild(foods[fid]);
+	delete foods[fid];
 }

@@ -41,3 +41,35 @@ input[type=text] {
 input[type=text]:focus {
 	border: 4px solid #FF4081;
 }
+
+#statusPanel {
+	position: absolute;
+	bottom: 0px;
+	left: 0px;
+	z-index: -1;
+	display: flex;
+	flex-direction: row;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 0px 8px;
+}
+
+div.property {
+	flex-grow: 1;
+	max-width: 200px;
+	padding: 0px 8px;
+	display: flex;
+	flex-direction: column;
+}
+
+div.propNameBox {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
+span.propName {
+	color: white;
+	font-size: 10pt;
+}
