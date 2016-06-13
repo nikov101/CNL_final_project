@@ -8,6 +8,7 @@ module.exports = function (io) {
 	var foodId = 0;
 	var foods = {};
 
+	// generate some food
 	setInterval(function () {
 		if (foodCount >= 70)
 			return;
@@ -23,6 +24,22 @@ module.exports = function (io) {
 			foodCount++;
 		}
 	}, 2000);
+
+	// leaderboard
+	setInterval(function () {
+		var leaderboard = [];
+		for (var pid in players) {
+			leaderboard.push({
+				name: players[pid].name,
+				level: players[pid].level
+			});
+		}
+		leaderboard.sort(function (a, b) {
+			return b.level - a.level;
+		});
+		leaderboard = leaderboard.slice(0, 10);
+		io.emit('leaderboard', leaderboard);
+	}, 5000);
 
 	io.on('connection', function (socket) {
 		sockets[socket.id] = socket;
@@ -42,7 +59,9 @@ module.exports = function (io) {
 			});
 		}
 		socket.on('disconnect', function () {
-			io.emit('quit', socket.id);
+			// io.emit('quit', socket.id);
+			io.emit('kill', socket.id);
+			delete players[socket.id];
 		});
 		socket.on('join', function (data) {
 			players[socket.id] = {
@@ -52,7 +71,7 @@ module.exports = function (io) {
 				maxBombs: 1,
 				power: 1,
 				speed: 1,
-				skillPoint: 5,  // for test
+				skillPoint: 0,
 				x: data.x,
 				y: data.y
 			};
@@ -101,8 +120,13 @@ module.exports = function (io) {
 			// data prop: type('maxBombs'|'power'|'speed')
 			if (!(socket.id in players) || players[socket.id].skillPoint <= 0)
 				return;
-			if (data.type == 'maxBombs' || data.type == 'power' || data.type == 'speed') {
+			if (data.type == 'maxBombs' || data.type == 'speed') {
 				if (players[socket.id][data.type] < 7) {
+					players[socket.id].skillPoint--;
+					players[socket.id][data.type]++;
+				}
+			} else if (data.type == 'power') {
+				if (players[socket.id][data.type] < 5) {
 					players[socket.id].skillPoint--;
 					players[socket.id][data.type]++;
 				}
@@ -140,7 +164,7 @@ module.exports = function (io) {
 					|| (f.x >= ranges[1].x1 && f.y >= ranges[1].y1 && f.x < ranges[1].x2 && f.y < ranges[1].y2)) {
 				io.emit('foodEaten', id);
 				if (b.pid in players) {
-					playerGetExp(b.pid, 0.5);  // for test
+					playerGetExp(b.pid, 1 / (4 * (players[b.pid].level | 0) - 3));
 					sendPlayerStatus(b.pid);
 				}
 				delete foods[id];
@@ -159,7 +183,7 @@ module.exports = function (io) {
 	function playerGetExp(pid, exp) {
 		var oldLevel = players[pid].level;
 		players[pid].level += exp;
-		if ((players[pid].level | 0) > (oldLevel | 0)) {  // level up
+		if (players[pid].level < 13 && (players[pid].level | 0) > (oldLevel | 0)) {  // level up
 			players[pid].skillPoint++;
 		}
 	}

@@ -14,6 +14,7 @@ var keys = new Array(128);
 var socket = io();
 var oldX, oldY;
 var mapWidth = 2000, mapHeight = 2000;
+var speed = 0;
 
 function init() {
 	stage = new createjs.Stage('canvas');
@@ -57,6 +58,7 @@ function init() {
 	socket.on('gameOver', recvGameOver);
 	socket.on('foodSpawn', recvFoodSpawn);
 	socket.on('foodEaten', recvFoodEaten);
+	socket.on('leaderboard', recvLeaderboard);
 
 	document.getElementById('playerNameInput').addEventListener('keypress', function (event) {
 		var keyCode = (event.keyCode ? event.keyCode : event.which);
@@ -65,12 +67,15 @@ function init() {
 	});
 	$('button.teal').on('click', function () {
 		sendUpgrade('maxBombs');
+		$('button').blur();
 	});
 	$('button.red').on('click', function () {
 		sendUpgrade('power');
+		$('button').blur();
 	});
 	$('button.yellow').on('click', function () {
 		sendUpgrade('speed');
+		$('button').blur();
 	});
 }
 
@@ -93,7 +98,7 @@ function join() {
 	document.addEventListener('keypress', handleKeyPress);
 	document.getElementById('startMenu').style.zIndex = -1;
 	document.getElementById('playerNameInput').disabled = true;
-	$('#statusPanel').css('z-index', 1);
+	$('.panel').css('z-index', 1);
 }
 
 function die() {
@@ -104,7 +109,7 @@ function die() {
 	dynamicContainer.removeChild(me);
 	document.getElementById('startMenu').style.zIndex = 1;
 	document.getElementById('playerNameInput').disabled = false;
-	$('#statusPanel').css('z-index', -1);
+	$('.panel').css('z-index', -1);
 	$('#playerNameInput').focus();
 }
 
@@ -122,7 +127,7 @@ function drawGridLines(){
 }
 
 function tick(event) {
-	var d = Math.round(event.delta * 0.3);
+	var d = event.delta * (0.18 + speed * 0.03);
 	if (keys[37])
 		me.x = Math.max(me.x - d, 0);
 	else if (keys[38])
@@ -168,8 +173,8 @@ function sendPositionInfo() {
 		oldX = me.x;
 		oldY = me.y;
 		socket.emit('position', {
-			x: me.x,
-			y: me.y
+			x: Math.round(me.x),
+			y: Math.round(me.y)
 		});
 	}
 }
@@ -266,13 +271,15 @@ function recvGameOver() {
 
 function recvStatus(data) {
 	$('div.teal.progress').progress({value:data.maxBombs, total:7, autoSuccess:false, showActivity:false});
-	$('div.red.progress').progress({value:data.power, total:7, autoSuccess:false, showActivity:false});
+	$('div.red.progress').progress({value:data.power, total:5, autoSuccess:false, showActivity:false});
 	$('div.yellow.progress').progress({value:data.speed, total:7, autoSuccess:false, showActivity:false});
+	$('div.olive.progress').progress({percent: (data.level % 1) * 100, autoSuccess:false, showActivity:false});
 	if (data.skillPoint > 0) {
 		$('button.ui').show();
 	} else {
 		$('button.ui').hide();
 	}
+	speed = data.speed;
 }
 
 function recvFoodSpawn(data) {
@@ -292,4 +299,11 @@ function recvFoodSpawn(data) {
 function recvFoodEaten(fid) {
 	foodsContainer.removeChild(foods[fid]);
 	delete foods[fid];
+}
+
+function recvLeaderboard(data) {
+	$('.ldb').remove();
+	for (var i = 0; i < data.length; i++) {
+		$('#leaderboard').append('<p class="ldb">['+(i+1)+'] '+data[i].name+'</p>')
+	}
 }

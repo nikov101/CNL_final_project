@@ -42,16 +42,28 @@ input[type=text]:focus {
 	border: 4px solid #FF4081;
 }
 
-#statusPanel {
+div.panel {
 	position: absolute;
+	z-index: -1;
+}
+
+#statusPanel {
 	bottom: 0px;
 	left: 0px;
-	z-index: -1;
 	display: flex;
 	flex-direction: row;
 	box-sizing: border-box;
 	width: 100%;
 	padding: 0px 8px;
+}
+
+#leaderboard {
+	top: 8px;
+	right: 8px;
+	box-sizing: border-box;
+	padding: 8px 8px;
+	color: white;
+	text-align: right;
 }
 
 div.property {
@@ -62,11 +74,19 @@ div.property {
 	flex-direction: column;
 }
 
+div.exp {
+	flex-grow: 1;
+	padding: 0px 8px;
+	display: flex;
+	flex-direction: column;
+}
+
 div.propNameBox {
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
 	align-items: center;
+	height: 30px;
 }
 
 span.propName {

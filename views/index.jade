@@ -16,7 +16,7 @@ html
 			h1 Welcome to Bomb.io :)
 			input#playerNameInput(type='text' autofocus placeholder='Enter your name here.' maxlength='20')
 			h3 Press Enter to play
-		div#statusPanel
+		div.panel#statusPanel
 			div.property
 				div.propNameBox
 					span.propName Max Bombs
@@ -38,3 +38,10 @@ html
 						i.icon.plus
 				div.ui.yellow.inverted.small.progress
 					div.bar
+			div.exp
+				div.propNameBox
+					span.propName Exp.
+				div.ui.olive.inverted.small.progress
+					div.bar
+		div.panel#leaderboard
+			p Leaderboard
