@@ -72,9 +72,12 @@ module.exports = function (io) {
 				power: 1,
 				speed: 1,
 				skillPoint: 0,
+				invulnerable: 1,
 				x: data.x,
 				y: data.y
 			};
+			setInvulnerable(socket.id);
+			players[socket.id].invulnerable--;
 			socket.broadcast.emit('position', {
 				id: socket.id,
 				name: data.name,
@@ -91,9 +94,6 @@ module.exports = function (io) {
 				players[data.id].x = data.x;
 				players[data.id].y = data.y;
 			}
-		});
-		socket.on('hello', function (data) {
-			io.emit('hello', data);
 		});
 		socket.on('setBomb', function (data) {
 			// data prop: x, y
@@ -146,11 +146,18 @@ module.exports = function (io) {
 			{x1: b.x-50*power, y1: b.y, x2: b.x+50*(power+1), y2: b.y+50},
 			{x1: b.x, y1: b.y-50*power, x2: b.x+50, y2: b.y+50*(power+1)}
 		];
-		io.emit('explosion', {id: id, power: power});
+		io.emit('explosion', {
+			id: id,
+			x: b.x,
+			y: b.y,
+			power: power
+		});
 		delete bombs[id];
 
 		for (id in players) {
 			var p = players[id];
+			if (p.invulnerable > 0)
+				continue;
 			if ((p.x >= ranges[0].x1 && p.y >= ranges[0].y1 && p.x < ranges[0].x2 && p.y < ranges[0].y2)
 					|| (p.x >= ranges[1].x1 && p.y >= ranges[1].y1 && p.x < ranges[1].x2 && p.y < ranges[1].y2)) {
 				sockets[id].broadcast.emit('kill', id);
@@ -164,7 +171,8 @@ module.exports = function (io) {
 					|| (f.x >= ranges[1].x1 && f.y >= ranges[1].y1 && f.x < ranges[1].x2 && f.y < ranges[1].y2)) {
 				io.emit('foodEaten', id);
 				if (b.pid in players) {
-					playerGetExp(b.pid, 1 / (4 * (players[b.pid].level | 0) - 3));
+					var exp = 1 / (4 * (players[b.pid].level | 0) - 3);
+					playerGetExp(b.pid, exp);
 					sendPlayerStatus(b.pid);
 				}
 				delete foods[id];
@@ -182,7 +190,7 @@ module.exports = function (io) {
 
 	function playerGetExp(pid, exp) {
 		var oldLevel = players[pid].level;
-		players[pid].level += exp;
+		players[pid].level = Math.ceil((players[pid].level + exp) * 100) / 100;
 		if (players[pid].level < 13 && (players[pid].level | 0) > (oldLevel | 0)) {  // level up
 			players[pid].skillPoint++;
 		}
@@ -190,5 +198,20 @@ module.exports = function (io) {
 
 	function sendPlayerStatus(pid) {
 		sockets[pid].emit('status', players[pid]);
+	}
+
+	function setInvulnerable(pid) {
+		if (pid in players) {
+			players[pid].invulnerable++;
+			if (players[pid].invulnerable == 1)
+				sendPlayerStatus(pid);
+		}
+		setTimeout(function () {
+			if (pid in players) {
+				players[pid].invulnerable--;
+				if (players[pid].invulnerable == 0)
+					sendPlayerStatus(pid);
+			}
+		}, 2500);
 	}
 };

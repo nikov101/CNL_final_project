@@ -1,6 +1,7 @@
 var canvas = null;
 var stage = null;
 var me = null;
+var meCircle = null;
 var others = {};
 var bombs = {};
 var foods = {};
@@ -11,7 +12,7 @@ var dynamicContainer = null;
 var staticContainer = null;
 
 var keys = new Array(128);
-var socket = io();
+var socket;
 var oldX, oldY;
 var mapWidth = 2000, mapHeight = 2000;
 var speed = 0;
@@ -48,9 +49,9 @@ function init() {
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
 	
+	socket = io();
 	socket.on('quit', recvQuit);
 	socket.on('position', recvPositionInfo);
-	socket.on('hello', recvHelloMsg);
 	socket.on('setBomb', recvSetBomb);
 	socket.on('explosion', recvExplosion);
 	socket.on('kill', recvKill);
@@ -80,20 +81,23 @@ function init() {
 }
 
 function join() {
-	me.x = mapWidth / 2;
-	me.y = mapHeight / 2;
+	me.x = Math.random() * mapWidth | 0;
+	me.y = Math.random() * mapHeight | 0;
 	var myName = document.getElementById('playerNameInput').value;
-	var t = new createjs.Text(myName, '12pt Arial', 'White');
-	t.textAlign = 'center';
-	t.textBaseline = 'middle';
-	me.addChild(meCircle, t);
+	var ts = new createjs.Text(myName, '12pt Lato', 'black');
+	ts.outline = 3;
+	ts.textAlign = 'center';
+	ts.textBaseline = 'middle';
+	var tf = new createjs.Text(myName, '12pt Lato', 'White');
+	tf.textAlign = 'center';
+	tf.textBaseline = 'middle';
+	me.addChild(meCircle, ts, tf);
 	dynamicContainer.addChild(me);
 	socket.emit('join', {
 		name: myName,
 		x: me.x,
 		y: me.y
 	});
-	// setInterval(sendPositionInfo, 33);
 	document.addEventListener('keydown', handleKeyDown);
 	document.addEventListener('keypress', handleKeyPress);
 	document.getElementById('startMenu').style.zIndex = -1;
@@ -133,9 +137,9 @@ function tick(event) {
 	else if (keys[38])
 		me.y = Math.max(me.y - d, 0);
 	else if (keys[39])
-		me.x = Math.min(me.x + d, mapWidth);
+		me.x = Math.min(me.x + d, mapWidth - 1);
 	else if (keys[40])
-		me.y = Math.min(me.y + d, mapHeight);
+		me.y = Math.min(me.y + d, mapHeight - 1);
 	dynamicContainer.x = canvas.width / 2 - me.x;  // moving camera
 	dynamicContainer.y = canvas.height / 2 - me.y;
 	sendPositionInfo();
@@ -157,8 +161,6 @@ function handleKeyDown(event) {
 
 function handleKeyPress(event) {
 	var keyCode = (event.keyCode ? event.keyCode : event.which);  // Firefox sucks!
-	// if (keyCode == 13)  // Enter
-	// 	socket.emit('hello', {x: me.x, y: me.y});
 	if (keyCode == 32)  // Space
 		socket.emit('setBomb', {x: me.x, y: me.y});
 }
@@ -188,12 +190,16 @@ function recvPositionInfo(data) {
 		var con = new createjs.Container();
 		var c = new createjs.Shape();
 		c.graphics.ss(3).s('black').f('Pink').drawCircle(0, 0, 25);
-		var t = new createjs.Text(data.name, '12pt Arial', 'White');
-		t.textAlign = 'center';
-		t.textBaseline = 'middle';
+		var ts = new createjs.Text(data.name, '12pt Lato', 'black');
+		ts.outline = 3;
+		ts.textAlign = 'center';
+		ts.textBaseline = 'middle';
+		var tf = new createjs.Text(data.name, '12pt Lato', 'White');
+		tf.textAlign = 'center';
+		tf.textBaseline = 'middle';
 		con.x = data.x;
 		con.y = data.y;
-		con.addChild(c, t);
+		con.addChild(c, ts, tf);
 		othersContainer.addChild(con);
 		others[data.id] = con;
 	} else {
@@ -201,21 +207,6 @@ function recvPositionInfo(data) {
 		// others[data.id].x = data.x;
 		// others[data.id].y = data.y;
 	}
-}
-
-function recvHelloMsg(msg) {
-	var text = new createjs.Text('Hello', '20px Arial', 'White');
-	text.x = msg.x;
-	text.y = msg.y;
-	text.textAlign = 'center';
-	text.textBaseline = 'middle';
-	dynamicContainer.addChild(text);
-	createjs.Tween.get(text)
-		.wait(1000)
-		.to({alpha: 0, scaleX: 3, scaleY: 3}, 300)
-		.call(function () {
-			dynamicContainer.removeChild(text);
-		});
 }
 
 function recvSetBomb(data) {
@@ -228,14 +219,13 @@ function recvSetBomb(data) {
 }
 
 function recvExplosion(data) {
-	var bomb = bombs[data.id];
 	var X = [-50, 0, 50, 0], Y = [0, -50, 0, 50];
 	for (var i = 0; i <= data.power; i++) {
 		for (var j = 0; j < 4; j++) {
 			var fire = new createjs.Shape();
 			fire.graphics.f('yellow').drawRoundRect(0, 0, 50, 50, 10);
-			fire.x = bomb.x + X[j] * i;
-			fire.y = bomb.y + Y[j] * i;
+			fire.x = data.x + X[j] * i;
+			fire.y = data.y + Y[j] * i;
 			bombsContainer.addChild(fire);
 			createjs.Tween.get(fire)
 				.wait(500)
@@ -245,24 +235,22 @@ function recvExplosion(data) {
 				});
 		}
 	}
-	bombsContainer.removeChild(bomb);
-	delete bombs[data.id];
+	if (data.id in bombs) {
+		bombsContainer.removeChild(bombs[data.id]);
+		delete bombs[data.id];
+	}
 }
 
 function recvKill(id) {
-	// if (id.indexOf(socket.id) == -1) {		// id would contain some \#$%^
-	// 	// not me
+	if (id in others) {
 		var s = others[id];
-		delete others[id];
 		createjs.Tween.get(s)
 			.to({alpha: 0, scaleX: 1.5, scaleY: 1.5}, 400)
 			.call(function () {
 				othersContainer.removeChild(s);
 			});
-	// } else {
-	// 	// is me
-	// 	die();
-	// }
+		delete others[id];
+	}
 }
 
 function recvGameOver() {
@@ -274,12 +262,29 @@ function recvStatus(data) {
 	$('div.red.progress').progress({value:data.power, total:5, autoSuccess:false, showActivity:false});
 	$('div.yellow.progress').progress({value:data.speed, total:7, autoSuccess:false, showActivity:false});
 	$('div.olive.progress').progress({percent: (data.level % 1) * 100, autoSuccess:false, showActivity:false});
+	$('#level').text('Level ' + (data.level | 0));
+	$('#exp').text(Math.round(data.level * 100 % 100) + '%');
 	if (data.skillPoint > 0) {
 		$('button.ui').show();
 	} else {
 		$('button.ui').hide();
 	}
 	speed = data.speed;
+	if (data.invulnerable > 0 && !createjs.Tween.hasActiveTweens(meCircle)) {
+		var matrix = new createjs.ColorMatrix().adjustSaturation(50);
+		var filter = new createjs.ColorMatrixFilter(matrix);
+		createjs.Tween.get(meCircle, {loop: true})
+			.to({filters: [filter]})
+			.call(function () { meCircle.cache(-30, -30, 60, 60); })
+			.wait(100)
+			.to({filters: []})
+			.call(function () { meCircle.cache(-30, -30, 60, 60); })
+			.wait(100);
+	} else if (data.invulnerable == 0) {
+		createjs.Tween.removeTweens(meCircle);
+		meCircle.filters = [];
+		meCircle.cache(-30, -30, 60, 60);
+	}
 }
 
 function recvFoodSpawn(data) {
@@ -304,6 +309,7 @@ function recvFoodEaten(fid) {
 function recvLeaderboard(data) {
 	$('.ldb').remove();
 	for (var i = 0; i < data.length; i++) {
-		$('#leaderboard').append('<p class="ldb">['+(i+1)+'] '+data[i].name+'</p>')
+		$('#leaderboard').append('<p class="ldb" id="ldb' + i + '"></p>');
+		$('#ldb' + i).text('[' + (i + 1) + '] ' + data[i].name);
 	}
 }

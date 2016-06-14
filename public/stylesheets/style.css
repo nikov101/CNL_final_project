@@ -1,6 +1,7 @@
 html, body {
 	margin: 0px;
 	overflow: hidden;
+	color: white;
 }
 
 #canvas {
@@ -15,8 +16,7 @@ html, body {
 	top: 0px;
 	right: 0px;
 	bottom: 0px;
-	background-color: rgba(69, 69, 69, 0.5);
-	color: white;
+	background-color: rgba(20, 20, 20, 0.4);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -35,7 +35,6 @@ input[type=text] {
 	font-size: 30pt;
 	text-align: center;
 	background-color: transparent;
-	color: white;
 }
 
 input[type=text]:focus {
@@ -45,6 +44,11 @@ input[type=text]:focus {
 div.panel {
 	position: absolute;
 	z-index: -1;
+	text-shadow:
+		-1px -1px 0 #000,  
+		1px -1px 0 #000,
+		-1px 1px 0 #000,
+		1px 1px 0 #000;
 }
 
 #statusPanel {
@@ -58,12 +62,13 @@ div.panel {
 }
 
 #leaderboard {
-	top: 8px;
-	right: 8px;
+	top: 16px;
+	right: 16px;
 	box-sizing: border-box;
 	padding: 8px 8px;
-	color: white;
 	text-align: right;
+	background-color: rgba(20, 20, 20, 0.2);
+	border-radius: 4px;
 }
 
 div.property {
@@ -90,6 +95,5 @@ div.propNameBox {
 }
 
 span.propName {
-	color: white;
 	font-size: 10pt;
 }
