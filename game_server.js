@@ -127,6 +127,7 @@ module.exports = function (io) {
 			if (data.id in players) {
 				data.name = players[data.id].name;
 				checkEatenItem(players[data.id], data.id);		///////////////////////////////////////////////////////////////////////////////////////////
+				data.invulnerable = players[data.id].invulnerable;
 				socket.broadcast.emit('position', data);
 				players[data.id].x = data.x;
 				players[data.id].y = data.y;
@@ -179,8 +180,8 @@ module.exports = function (io) {
 				continue;
 			if (specialItem[id].type == 1)
 				players[pid].hasTurtle = 1;
+			io.emit('itemEaten', id);
 			sockets[pid].emit('gotBuff', specialItem[id]);
-			sockets[pid].broadcast.emit('itemEaten');
 			delete specialItem[id];
 			specialItemCount--;
 		}

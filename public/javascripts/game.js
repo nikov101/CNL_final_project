@@ -1,5 +1,6 @@
 var canvas = null;
 var stage = null;
+var filter = null;
 var me = null;
 var meCircle = null;
 var meShield = null;
@@ -25,6 +26,9 @@ var isCobweb = 0;
 function init() {
 	stage = new createjs.Stage('canvas');
 	canvas = document.getElementById('canvas');
+
+	var matrix = new createjs.ColorMatrix().adjustSaturation(50);
+	filter = new createjs.ColorMatrixFilter(matrix);
 
 	dynamicContainer = new createjs.Container();
 	stage.addChild(dynamicContainer);
@@ -111,8 +115,6 @@ function recvGotBuff(data) {	///////////////////////////////////////////////////
 			isUpsideDown--;
 		}, 5000);
 	}
-
-	recvItemEaten(data.id);
 }
 
 function recvNoTurtle() {		///////////////////////////////////////// //////// /////////////////////////////
@@ -297,6 +299,20 @@ function recvPositionInfo(data) {
 		othersContainer.addChild(con);
 		others[data.id] = con;
 	} else {
+		if (data.invulnerable > 0 && !createjs.Tween.hasActiveTweens(others[data.id])) {
+			createjs.Tween.get(others[data.id], {loop: true})
+				.to({filters: [filter]})
+				.call(function () { others[data.id].cache(-30, -30, 60, 60); })
+				.wait(100)
+				.to({filters: []})
+				.call(function () { others[data.id].cache(-30, -30, 60, 60); })
+				.wait(100);
+		} else if (data.invulnerable == 0) {
+			createjs.Tween.removeTweens(others[data.id]);
+			others[data.id].filters = [];
+			others[data.id].cache(-30, -30, 60, 60);
+		}
+
 		createjs.Tween.get(others[data.id]).to({x: data.x, y: data.y}, 15);
 		// others[data.id].x = data.x;
 		// others[data.id].y = data.y;
@@ -365,8 +381,6 @@ function recvStatus(data) {
 	}
 	speed = data.speed;
 	if (data.invulnerable > 0 && !createjs.Tween.hasActiveTweens(meCircle)) {
-		var matrix = new createjs.ColorMatrix().adjustSaturation(50);
-		var filter = new createjs.ColorMatrixFilter(matrix);
 		createjs.Tween.get(meCircle, {loop: true})
 			.to({filters: [filter]})
 			.call(function () { meCircle.cache(-30, -30, 60, 60); })
