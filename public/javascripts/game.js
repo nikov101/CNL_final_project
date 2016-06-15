@@ -2,10 +2,13 @@ var canvas = null;
 var stage = null;
 var me = null;
 var meCircle = null;
+var meShield = null;
 var others = {};
 var bombs = {};
 var foods = {};
+var items = {};												///////////////////////////////
 var othersContainer = null;
+var itemsContainer = null;
 var bombsContainer = null;
 var foodsContainer = null;
 var dynamicContainer = null;
@@ -16,6 +19,8 @@ var socket;
 var oldX, oldY;
 var mapWidth = 2000, mapHeight = 2000;
 var speed = 0;
+var isUpsideDown = 0;
+var isCobweb = 0;
 
 function init() {
 	stage = new createjs.Stage('canvas');
@@ -29,6 +34,8 @@ function init() {
 	dynamicContainer.addChild(foodsContainer);
 	bombsContainer = new createjs.Container();
 	dynamicContainer.addChild(bombsContainer);
+	itemsContainer = new createjs.Container();									//////////////////////////////////////
+	dynamicContainer.addChild(itemsContainer);
 	othersContainer = new createjs.Container();
 	dynamicContainer.addChild(othersContainer);
 	staticContainer = new createjs.Container();
@@ -37,18 +44,21 @@ function init() {
 	me = new createjs.Container();
 	meCircle = new createjs.Shape();
 	meCircle.graphics.ss(3).s('black').f('DeepSkyBlue').drawCircle(0, 0, 25);
+	meShield = new createjs.Shape();
+	meShield.graphics.ss(5).s('green').ef().drawCircle(0, 0, 25);
+	meShield.alpha = 0;
 	me.x = mapWidth / 2;
 	me.y = mapHeight / 2;
-	
+
 	resizeCanvas();
 	window.addEventListener('resize', resizeCanvas);
 	document.addEventListener('keyup', function (event) {
 		keys[event.keyCode] = false;
 	});
-	
+
 	createjs.Ticker.addEventListener('tick', tick);
 	createjs.Ticker.timingMode = createjs.Ticker.RAF;
-	
+
 	socket = io();
 	socket.on('quit', recvQuit);
 	socket.on('position', recvPositionInfo);
@@ -60,6 +70,11 @@ function init() {
 	socket.on('foodSpawn', recvFoodSpawn);
 	socket.on('foodEaten', recvFoodEaten);
 	socket.on('leaderboard', recvLeaderboard);
+	socket.on('UFO', recvUFO);																				///////////////
+	socket.on('itemEaten', recvItemEaten);														////////////////////
+	socket.on('gotBuff', recvGotBuff);											//////////////////////
+	socket.on('noTurtle', recvNoTurtle);																		////////////////////////////
+	socket.on('itemsSpawn', recvItemsSpawn);
 
 	document.getElementById('playerNameInput').addEventListener('keypress', function (event) {
 		var keyCode = (event.keyCode ? event.keyCode : event.which);
@@ -80,6 +95,77 @@ function init() {
 	});
 }
 
+function recvGotBuff(data) {	//////////////////////////////////////////////////////////////////          ///////////////////////////////
+	if (data.type == 0) {	//cobweb
+		isCobweb++;
+		setTimeout(function () {
+			isCobweb--;
+		}, 3000);
+	} else if (data.type == 1) {	//turtle
+		createjs.Tween.get(meShield)
+			.to({alpha: 0, scaleX: 2, scaleY: 2})
+			.to({alpha: 1, scaleX: 1, scaleY: 1}, 300);
+	} else {	//upsideDown
+		isUpsideDown++;
+		setTimeout(function () {
+			isUpsideDown--;
+		}, 5000);
+	}
+
+	recvItemEaten(data.id);
+}
+
+function recvNoTurtle() {		///////////////////////////////////////// //////// /////////////////////////////
+	createjs.Tween.get(meShield).to({alpha: 0, scaleX: 2, scaleY: 2}, 300);
+}
+
+function recvItemEaten(id) {	////////////////////////////////////////////////////////////////////        ///////////////////////////
+	itemsContainer.removeChild(items[id]);
+	delete items[id];
+}
+
+function recvItemsSpawn(data) {  ////////////////////////////////////////////////////////////////////////////////////////////////////////
+	var item = new createjs.Shape();
+	if (data.type == 0) {
+		item.graphics.ss(3).s('white').ef().drawCircle(0, 0, 15).s('white').drawPolyStar(0, 0, 10, 8, 1, 22.5);
+	} else if(data.type == 1) {
+		item.graphics.ss(3).s('white').ef().drawCircle(0, 0, 15).s('white').f('green').drawPolyStar(0, 0, 10, 6, 0, 0);
+	} else {
+		item.graphics.ss(3).s('white').ef().drawCircle(0, 0, 15).s('red').drawPolyStar(0, 0, 10, 4, 1, 45);
+	}
+	item.x = data.x;
+	item.y = data.y;
+	item.alpha = 0;
+	itemsContainer.addChild(item);
+	items[data.id] = item;
+	createjs.Tween.get(item).to({alpha: 1}, 800);
+}
+
+function recvUFO(UFOy) {	////////////////////////////////////////////////////////////////////////         //////////////////////////////
+	var UFO = new createjs.Shape();
+	UFO.graphics.ss(3).s('black').f('aqua').drawCircle(-40, 18, 17);
+	UFO.graphics.ss(3).s('black').f('aqua').drawCircle(0, 23, 17);
+	UFO.graphics.ss(3).s('black').f('aqua').drawCircle(40, 18, 17);
+	UFO.graphics.ss(3).s('black').f('gray').drawEllipse(-80, -17, 160, 40);
+	UFO.graphics.ss(3).s('black').f('aqua').drawEllipse(-53, -9, 106, 18);	//mid line
+	UFO.graphics.ss(3).s('black').f('aqua').arc(0, 0, 53, Math.PI, 0);	//up circle
+	UFO.graphics.ss(3).s('black').ef().arc(40, -53, 40, Math.PI, Math.PI*1.3);
+	UFO.graphics.ss(3).s('black').f('aqua').drawCircle(20, -87, 8);
+	UFO.x = 5000;
+	UFO.y = UFOy;
+	itemsContainer.addChild(UFO);
+
+	createjs.Tween.get(UFO).to({ alpha: 0, x: 2200 }, 1)
+							.to({ alpha: 1, x: 2000 }, 700, createjs.Ease.getPowInOut(2))
+							.to({ x: 1000 }, 3000)
+							.to({ x: 0}, 3000, createjs.Ease.getPowInOut(2))
+							.to({ alpha: 0, x: -200}, 700);
+
+	// for (var i = 0; i < 10; i++) {
+	// 	recvItemsSpawn(data[i]);
+	// }
+}
+
 function join() {
 	me.x = Math.random() * mapWidth | 0;
 	me.y = Math.random() * mapHeight | 0;
@@ -91,8 +177,9 @@ function join() {
 	var tf = new createjs.Text(myName, '12pt Lato', 'White');
 	tf.textAlign = 'center';
 	tf.textBaseline = 'middle';
-	me.addChild(meCircle, ts, tf);
+	me.addChild(meCircle, meShield, ts, tf);
 	dynamicContainer.addChild(me);
+
 	socket.emit('join', {
 		name: myName,
 		x: me.x,
@@ -131,7 +218,14 @@ function drawGridLines(){
 }
 
 function tick(event) {
-	var d = event.delta * (0.18 + speed * 0.03);
+	var d;
+	if (!isCobweb) {								//////////////////////////////////////////////////////////////
+		d = event.delta * (0.18 + speed * 0.03);
+	} else {
+		d = event.delta * (0.1);
+	}
+	if (isUpsideDown)
+		d = -d;
 	if (keys[37])
 		me.x = Math.max(me.x - d, 0);
 	else if (keys[38])

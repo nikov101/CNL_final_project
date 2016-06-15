@@ -1,5 +1,5 @@
 module.exports = function (io) {
-	
+
 	var sockets = {};
 	var bombId = 0;
 	var bombs = {};
@@ -7,6 +7,9 @@ module.exports = function (io) {
 	var foodCount = 0;
 	var foodId = 0;
 	var foods = {};
+	var specialItem = {};
+	var specialItemId = 0;
+	var specialItemCount = 0;
 
 	// generate some food
 	setInterval(function () {
@@ -24,6 +27,30 @@ module.exports = function (io) {
 			foodCount++;
 		}
 	}, 2000);
+
+	//UFO
+	setInterval(function () { 			////////////////////////////////////////////////////////////////////////////////////////
+		if (specialItemCount > 3)
+			return;
+		var UFOy = (Math.random() * 20 | 0) * 50 + 500;	//y:500~1000
+		// var UFOdata = {};
+		for (var i = 0; i < 10; i++) {
+			var siid = specialItemId++;
+			var si = {
+				x: (Math.random() * 40 | 0) * 50 + 25,
+				y: (((Math.random() * 5 | 0) - 2) * 50 + 25 + UFOy)	//y:UFOy +- 2
+			};
+			specialItem[siid] = si;
+			si.id = siid;
+			si.type = (Math.random() * 3 | 0);
+			specialItemCount++;
+			setTimeout(function (obj) {
+				io.emit('itemsSpawn', obj);
+			}, (2000 - si.x) * 3, Object.assign({}, si));
+			// UFOdata[i] = si;
+		}
+		io.emit('UFO', UFOy);
+	}, 13000);
 
 	// leaderboard
 	setInterval(function () {
@@ -58,13 +85,21 @@ module.exports = function (io) {
 				y: foods[fid].y
 			});
 		}
+		for (var iid in specialItem) {		////////////////////////////////////////////////////////////////////////
+			socket.emit('itemsSpawn', {
+				id: iid,
+				type: specialItem[iid].type,
+				x: specialItem[iid].x,
+				y: specialItem[iid].y
+			});
+		}
 		socket.on('disconnect', function () {
 			// io.emit('quit', socket.id);
 			io.emit('kill', socket.id);
 			delete players[socket.id];
 		});
 		socket.on('join', function (data) {
-			players[socket.id] = {
+			players[socket.id] = {	////////////////////////////////////////////////////////////
 				name: data.name,
 				level: 1,
 				bombs: 0,
@@ -73,6 +108,7 @@ module.exports = function (io) {
 				speed: 1,
 				skillPoint: 0,
 				invulnerable: 1,
+				hasTurtle: 0,
 				x: data.x,
 				y: data.y
 			};
@@ -90,6 +126,7 @@ module.exports = function (io) {
 			data.id = socket.id;
 			if (data.id in players) {
 				data.name = players[data.id].name;
+				checkEatenItem(players[data.id], data.id);		///////////////////////////////////////////////////////////////////////////////////////////
 				socket.broadcast.emit('position', data);
 				players[data.id].x = data.x;
 				players[data.id].y = data.y;
@@ -135,6 +172,20 @@ module.exports = function (io) {
 		});
 	});
 
+	function checkEatenItem(data, pid) {	///////////////////////////////////////////////////////////////////////////////////////////////
+		for (id in specialItem) {
+			if (data.x > specialItem[id].x + 25 || data.x < specialItem[id].x -25
+					|| data.y > specialItem[id].y + 25 || data.y < specialItem[id].y -25)
+				continue;
+			if (specialItem[id].type == 1)
+				players[pid].hasTurtle = 1;
+			sockets[pid].emit('gotBuff', specialItem[id]);
+			sockets[pid].broadcast.emit('itemEaten');
+			delete specialItem[id];
+			specialItemCount--;
+		}
+	}
+
 	function handleExplosion(id) {
 		if (!(id in bombs))
 			return;
@@ -160,9 +211,15 @@ module.exports = function (io) {
 				continue;
 			if ((p.x >= ranges[0].x1 && p.y >= ranges[0].y1 && p.x < ranges[0].x2 && p.y < ranges[0].y2)
 					|| (p.x >= ranges[1].x1 && p.y >= ranges[1].y1 && p.x < ranges[1].x2 && p.y < ranges[1].y2)) {
-				sockets[id].broadcast.emit('kill', id);
-				sockets[id].emit('gameOver');
-				delete players[id];
+				if (p.hasTurtle) {  /////////////////////////////////////////////////////////////////////////////////////////////////////////
+					p.hasTurtle = 0;
+					sockets[id].emit('noTurtle');
+					setInvulnerable(id);
+				} else {
+					sockets[id].broadcast.emit('kill', id);
+					sockets[id].emit('gameOver');
+					delete players[id];
+				}
 			}
 		}
 		for (id in foods) {
@@ -177,6 +234,15 @@ module.exports = function (io) {
 				}
 				delete foods[id];
 				foodCount--;
+			}
+		}
+		for (id in specialItem) {	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			var s = specialItem[id];
+			if ((s.x >= ranges[0].x1 && s.y >= ranges[0].y1 && s.x < ranges[0].x2 && s.y < ranges[0].y2)
+					|| (s.x >= ranges[1].x1 && s.y >= ranges[1].y1 && s.x < ranges[1].x2 && s.y < ranges[1].y2)) {
+				io.emit('itemEaten', id);
+				delete specialItem[id];
+				specialItemCount--;
 			}
 		}
 		for (id in bombs) {
