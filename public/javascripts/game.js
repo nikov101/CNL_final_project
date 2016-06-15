@@ -127,6 +127,8 @@ function recvItemEaten(id) {	///////////////////////////////////////////////////
 }
 
 function recvItemsSpawn(data) {  ////////////////////////////////////////////////////////////////////////////////////////////////////////
+	if (data.id in items)
+		return;
 	var item = new createjs.Shape();
 	if (data.type == 0) {
 		item.graphics.ss(3).s('white').ef().drawCircle(0, 0, 15).s('white').drawPolyStar(0, 0, 10, 8, 1, 22.5);

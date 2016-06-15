@@ -37,20 +37,20 @@ module.exports = function (io) {
 		for (var i = 0; i < 10; i++) {
 			var siid = specialItemId++;
 			var si = {
+				id: siid,
+				type: (Math.random() * 3 | 0),
 				x: (Math.random() * 40 | 0) * 50 + 25,
 				y: (((Math.random() * 5 | 0) - 2) * 50 + 25 + UFOy)	//y:UFOy +- 2
 			};
-			specialItem[siid] = si;
-			si.id = siid;
-			si.type = (Math.random() * 3 | 0);
-			specialItemCount++;
-			setTimeout(function (obj) {
+			setTimeout(function (siid, obj) {
+				specialItem[siid] = obj;
+				specialItemCount++;
 				io.emit('itemsSpawn', obj);
-			}, (2000 - si.x) * 3, Object.assign({}, si));
+			}, (2000 - si.x) * 3, siid, Object.assign({}, si));
 			// UFOdata[i] = si;
 		}
 		io.emit('UFO', UFOy);
-	}, 13000);
+	}, 20000);
 
 	// leaderboard
 	setInterval(function () {
