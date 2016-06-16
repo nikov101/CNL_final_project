@@ -1,6 +1,7 @@
 html, body {
 	margin: 0px;
 	overflow: hidden;
+	color: white;
 }
 
 #canvas {
@@ -15,8 +16,7 @@ html, body {
 	top: 0px;
 	right: 0px;
 	bottom: 0px;
-	background-color: rgba(69, 69, 69, 0.5);
-	color: white;
+	background-color: rgba(20, 20, 20, 0.4);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -35,9 +35,65 @@ input[type=text] {
 	font-size: 30pt;
 	text-align: center;
 	background-color: transparent;
-	color: white;
 }
 
 input[type=text]:focus {
 	border: 4px solid #FF4081;
+}
+
+div.panel {
+	position: absolute;
+	z-index: -1;
+	text-shadow:
+		-1px -1px 0 #000,  
+		1px -1px 0 #000,
+		-1px 1px 0 #000,
+		1px 1px 0 #000;
+}
+
+#statusPanel {
+	bottom: 0px;
+	left: 0px;
+	display: flex;
+	flex-direction: row;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 0px 8px;
+}
+
+#leaderboard {
+	top: 16px;
+	right: 16px;
+	box-sizing: border-box;
+	padding: 8px 8px;
+	text-align: right;
+	background-color: rgba(20, 20, 20, 0.2);
+	border-radius: 4px;
+}
+
+div.property {
+	flex-grow: 1;
+	max-width: 200px;
+	padding: 0px 8px;
+	display: flex;
+	flex-direction: column;
+}
+
+div.exp {
+	flex-grow: 1;
+	padding: 0px 8px;
+	display: flex;
+	flex-direction: column;
+}
+
+div.propNameBox {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	height: 30px;
+}
+
+span.propName {
+	font-size: 10pt;
 }
