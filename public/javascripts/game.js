@@ -231,13 +231,15 @@ function tick(event) {
 	if (isUpsideDown)
 		d = -d;
 	if (keys[37])
-		me.x = Math.max(me.x - d, 0);
+		me.x -= d;
 	else if (keys[38])
-		me.y = Math.max(me.y - d, 0);
+		me.y -= d;
 	else if (keys[39])
-		me.x = Math.min(me.x + d, mapWidth - 1);
+		me.x += d;
 	else if (keys[40])
-		me.y = Math.min(me.y + d, mapHeight - 1);
+		me.y += d;
+	me.x = Math.max(Math.min(me.x, mapWidth - 1), 0);
+	me.y = Math.max(Math.min(me.y, mapHeight - 1), 0);
 	dynamicContainer.x = canvas.width / 2 - me.x;  // moving camera
 	dynamicContainer.y = canvas.height / 2 - me.y;
 	sendPositionInfo();
